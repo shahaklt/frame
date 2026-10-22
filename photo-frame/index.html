@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111111" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Photo Frame" />
+  <title>Photo Frame</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <h1>Photo Frame</h1>
+    </header>
+
+    <section class="stage" id="stage">
+      <div class="placeholder" id="placeholder">
+        <p>Choose a photo to start</p>
+      </div>
+      <canvas id="preview" hidden></canvas>
+    </section>
+
+    <section class="controls" aria-label="Editing controls" id="controls" hidden>
+      <div class="row">
+        <span class="label">Aspect</span>
+        <div class="segmented" data-group="aspect">
+          <button data-value="1:1" aria-pressed="true">1:1</button>
+          <button data-value="4:5">4:5</button>
+          <button data-value="9:16">9:16</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="label">Filter</span>
+        <div class="segmented" data-group="filter">
+          <button data-value="none" aria-pressed="true">None</button>
+          <button data-value="warm">Warm</button>
+          <button data-value="fade">Fade</button>
+          <button data-value="mono">Mono</button>
+        </div>
+      </div>
+
+      <label class="row">
+        <span class="label">Border</span>
+        <input type="range" id="border" min="0" max="20" value="6" />
+      </label>
+
+      <label class="row">
+        <span class="label">Frame color</span>
+        <input type="color" id="frameColor" value="#ffffff" />
+      </label>
+
+      <label class="row">
+        <span class="label">Caption</span>
+        <input type="text" id="caption" maxlength="60" placeholder="Optional" />
+      </label>
+    </section>
+
+    <footer class="bottom">
+      <label class="button secondary">
+        <input type="file" id="file" accept="image/*" hidden />
+        Choose photo
+      </label>
+      <button class="button primary" id="save" disabled>Save</button>
+    </footer>
+  </main>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
