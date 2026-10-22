@@ -20,9 +20,10 @@
 
     <section class="stage" id="stage">
       <div class="placeholder" id="placeholder">
-        <p>Choose a photo to start</p>
+        <p>Take a photo or choose one to start</p>
       </div>
       <canvas id="preview" hidden></canvas>
+      <canvas id="viewfinder" hidden></canvas>
     </section>
 
     <section class="controls" aria-label="Editing controls" id="controls" hidden>
@@ -42,6 +43,7 @@
           <button data-value="warm">Warm</button>
           <button data-value="fade">Fade</button>
           <button data-value="mono">Mono</button>
+          <button data-value="polaroid">Polaroid</button>
         </div>
       </div>
 
@@ -61,15 +63,41 @@
       </label>
     </section>
 
-    <footer class="bottom">
+    <section class="controls" aria-label="Camera settings" id="cameraControls" hidden>
+      <div class="row">
+        <span class="label">Aspect</span>
+        <div class="segmented" data-group="camAspect">
+          <button data-value="1:1" aria-pressed="true">1:1</button>
+          <button data-value="4:5">4:5</button>
+          <button data-value="9:16">9:16</button>
+        </div>
+      </div>
+
+      <label class="row">
+        <span class="label">Auto-frame</span>
+        <input type="checkbox" id="autoFrame" checked />
+      </label>
+    </section>
+
+    <footer class="bottom" id="editBar">
       <label class="button secondary">
         <input type="file" id="file" accept="image/*" hidden />
         Choose photo
       </label>
+      <button class="button secondary" id="openCamera">Camera</button>
       <button class="button primary" id="save" disabled>Save</button>
+    </footer>
+
+    <footer class="bottom camera-bar" id="cameraBar" hidden>
+      <button class="button secondary" id="cancelCamera">Cancel</button>
+      <button class="shutter" id="shutter" aria-label="Take photo"></button>
+      <button class="button secondary" id="flipCamera">Flip</button>
     </footer>
   </main>
 
+  <script src="looks.js" defer></script>
+  <script src="composition.js" defer></script>
+  <script src="camera.js" defer></script>
   <script src="app.js" defer></script>
 </body>
 </html>
