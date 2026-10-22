@@ -20,6 +20,11 @@
   box-sizing: border-box;
 }
 
+/* Keep `hidden` working on elements that set display themselves. */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -106,8 +111,8 @@ body {
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 14px;
-  padding: 6px 10px;
+  font-size: 13px;
+  padding: 6px 8px;
   border-radius: 7px;
   cursor: pointer;
 }
@@ -179,4 +184,50 @@ input[type="text"] {
 .button.secondary {
   background: var(--panel);
   color: var(--accent);
+}
+
+.camera-bar {
+  align-items: center;
+}
+
+.camera-bar .button {
+  min-height: 50px;
+}
+
+.shutter {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border: 4px solid var(--text);
+  border-radius: 50%;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.shutter::after {
+  content: "";
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.shutter:active::after {
+  opacity: 0.7;
+}
+
+#viewfinder {
+  max-width: 100%;
+  max-height: 60vh;
+  display: block;
+}
+
+#autoFrame {
+  width: 51px;
+  height: 31px;
+  accent-color: var(--accent);
 }
