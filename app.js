@@ -1,9 +1,3 @@
-const ASPECTS = {
-  "1:1": [1, 1],
-  "4:5": [4, 5],
-  "9:16": [9, 16],
-};
-
 const PREVIEW_WIDTH = 1080;
 const EXPORT_WIDTH = 2400;
 
@@ -16,12 +10,24 @@ const state = {
   caption: "",
 };
 
+// Aspect chosen inside the camera. It is copied into `state.aspect` on capture.
+let cameraAspect = state.aspect;
+
 const els = {
   file: document.getElementById("file"),
   placeholder: document.getElementById("placeholder"),
   preview: document.getElementById("preview"),
+  viewfinder: document.getElementById("viewfinder"),
   controls: document.getElementById("controls"),
+  editBar: document.getElementById("editBar"),
   save: document.getElementById("save"),
+  openCamera: document.getElementById("openCamera"),
+  cameraControls: document.getElementById("cameraControls"),
+  cameraBar: document.getElementById("cameraBar"),
+  shutter: document.getElementById("shutter"),
+  cancelCamera: document.getElementById("cancelCamera"),
+  flipCamera: document.getElementById("flipCamera"),
+  autoFrame: document.getElementById("autoFrame"),
   border: document.getElementById("border"),
   frameColor: document.getElementById("frameColor"),
   caption: document.getElementById("caption"),
@@ -32,11 +38,7 @@ els.file.addEventListener("change", async (event) => {
   if (!file) return;
   try {
     state.image = await loadImage(file);
-    els.placeholder.hidden = true;
-    els.preview.hidden = false;
-    els.controls.hidden = false;
-    els.save.disabled = false;
-    scheduleRender();
+    showEditor();
   } catch (error) {
     alert("That file could not be opened as an image.");
   } finally {
@@ -48,8 +50,12 @@ for (const group of document.querySelectorAll(".segmented")) {
   group.addEventListener("click", (event) => {
     const button = event.target.closest("button");
     if (!button) return;
-    for (const other of group.querySelectorAll("button")) {
-      other.setAttribute("aria-pressed", String(other === button));
+    setPressed(group, button.dataset.value);
+
+    if (group.dataset.group === "camAspect") {
+      cameraAspect = button.dataset.value;
+      Camera.setAspect(cameraAspect);
+      return;
     }
     state[group.dataset.group] = button.dataset.value;
     scheduleRender();
@@ -72,6 +78,73 @@ els.caption.addEventListener("input", () => {
 });
 
 els.save.addEventListener("click", saveImage);
+els.openCamera.addEventListener("click", openCamera);
+els.cancelCamera.addEventListener("click", closeCamera);
+els.shutter.addEventListener("click", takePhoto);
+els.flipCamera.addEventListener("click", () => {
+  Camera.flip().catch(() => alert("Could not switch cameras."));
+});
+els.autoFrame.addEventListener("change", () => {
+  Camera.setAutoFrame(els.autoFrame.checked);
+});
+
+if (!navigator.mediaDevices?.getUserMedia) {
+  els.openCamera.disabled = true;
+  els.openCamera.title = "Camera needs HTTPS and a supported browser";
+}
+
+function setPressed(group, value) {
+  for (const button of group.querySelectorAll("button")) {
+    button.setAttribute("aria-pressed", String(button.dataset.value === value));
+  }
+}
+
+function showEditor() {
+  const hasImage = Boolean(state.image);
+  els.viewfinder.hidden = true;
+  els.cameraControls.hidden = true;
+  els.cameraBar.hidden = true;
+  els.editBar.hidden = false;
+  els.placeholder.hidden = hasImage;
+  els.preview.hidden = !hasImage;
+  els.controls.hidden = !hasImage;
+  els.save.disabled = !hasImage;
+  scheduleRender();
+}
+
+async function openCamera() {
+  cameraAspect = state.aspect;
+  setPressed(document.querySelector('[data-group="camAspect"]'), cameraAspect);
+
+  els.placeholder.hidden = true;
+  els.preview.hidden = true;
+  els.controls.hidden = true;
+  els.editBar.hidden = true;
+  els.viewfinder.hidden = false;
+  els.cameraControls.hidden = false;
+  els.cameraBar.hidden = false;
+
+  try {
+    await Camera.start({ aspect: cameraAspect, autoFrame: els.autoFrame.checked });
+  } catch (error) {
+    alert("Camera access was not allowed.");
+    closeCamera();
+  }
+}
+
+function closeCamera() {
+  Camera.stop();
+  showEditor();
+}
+
+function takePhoto() {
+  const photo = Camera.capture();
+  if (!photo) return;
+  state.image = photo;
+  state.aspect = cameraAspect;
+  setPressed(document.querySelector('[data-group="aspect"]'), state.aspect);
+  closeCamera();
+}
 
 let renderQueued = false;
 function scheduleRender() {
@@ -109,66 +182,48 @@ function renderTo(canvas, image, opts, width) {
   canvas.height = h;
 
   const ctx = canvas.getContext("2d");
+  const look = LOOKS[opts.filter] || null;
+  const polaroid = Boolean(look && look.frame === "polaroid");
+
+  // Polaroid: thin even border with a deep strip along the bottom for the caption.
+  // Other frames: even border, with a caption strip below the photo when needed.
   const pad = Math.round((w * opts.border) / 200);
-  const captionH = opts.caption ? Math.round(w * 0.1) : 0;
-  const innerW = w - pad * 2;
-  const innerH = h - pad * 2 - captionH;
+  const side = polaroid ? Math.max(pad, Math.round(w * 0.045)) : pad;
+  const stripH = polaroid ? Math.round(w * 0.2) : opts.caption ? Math.round(w * 0.1) : 0;
+  const bottom = polaroid ? stripH : side + stripH;
+  const innerW = w - side * 2;
+  const innerH = h - side - bottom;
 
   ctx.fillStyle = opts.frameColor;
   ctx.fillRect(0, 0, w, h);
 
-  // Cover-fit the photo into the inner box, centered.
-  const scale = Math.max(innerW / image.naturalWidth, innerH / image.naturalHeight);
+  // Cover-fit the photo into the inner box, centred.
+  const srcW = image.naturalWidth || image.width;
+  const srcH = image.naturalHeight || image.height;
+  const scale = Math.max(innerW / srcW, innerH / srcH);
   const sw = innerW / scale;
   const sh = innerH / scale;
-  const sx = (image.naturalWidth - sw) / 2;
-  const sy = (image.naturalHeight - sh) / 2;
-  ctx.drawImage(image, sx, sy, sw, sh, pad, pad, innerW, innerH);
+  const sx = (srcW - sw) / 2;
+  const sy = (srcH - sh) / 2;
+  ctx.drawImage(image, sx, sy, sw, sh, side, side, innerW, innerH);
 
-  if (opts.filter !== "none") {
-    const data = ctx.getImageData(pad, pad, innerW, innerH);
-    applyFilter(data.data, opts.filter);
-    ctx.putImageData(data, pad, pad);
+  if (look) {
+    const data = ctx.getImageData(side, side, innerW, innerH);
+    applyLook(data.data, innerW, innerH, look);
+    ctx.putImageData(data, side, side);
   }
 
   if (opts.caption) {
-    const textColor = isDark(opts.frameColor) ? "#ffffff" : "#111111";
-    ctx.fillStyle = textColor;
+    const stripTop = side + innerH;
+    const textY = polaroid ? stripTop + (h - stripTop) / 2 : stripTop + stripH / 2;
+    ctx.fillStyle = isDark(opts.frameColor) ? "#ffffff" : "#111111";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = `500 ${Math.round(captionH * 0.4)}px -apple-system, system-ui, sans-serif`;
-    ctx.fillText(opts.caption, w / 2, h - captionH / 2, w - pad * 2);
+    ctx.font = polaroid
+      ? `${Math.round(w * 0.055)}px "Bradley Hand", "Segoe Print", "Comic Sans MS", cursive`
+      : `500 ${Math.round(stripH * 0.4)}px -apple-system, system-ui, sans-serif`;
+    ctx.fillText(opts.caption, w / 2, textY, w - side * 2);
   }
-}
-
-function applyFilter(px, name) {
-  for (let i = 0; i < px.length; i += 4) {
-    let r = px[i];
-    let g = px[i + 1];
-    let b = px[i + 2];
-
-    if (name === "warm") {
-      r = clamp(r * 1.08 + 8);
-      g = clamp(g * 1.02);
-      b = clamp(b * 0.88);
-    } else if (name === "fade") {
-      // Lift the blacks and soften contrast, like a faded print.
-      r = clamp(r * 0.85 + 30);
-      g = clamp(g * 0.85 + 30);
-      b = clamp(b * 0.85 + 34);
-    } else if (name === "mono") {
-      const y = clamp(0.299 * r + 0.587 * g + 0.114 * b);
-      r = g = b = y;
-    }
-
-    px[i] = r;
-    px[i + 1] = g;
-    px[i + 2] = b;
-  }
-}
-
-function clamp(v) {
-  return v < 0 ? 0 : v > 255 ? 255 : v;
 }
 
 function isDark(hex) {
